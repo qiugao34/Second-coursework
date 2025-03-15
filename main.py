@@ -3,6 +3,13 @@ from math import cos, sin, pi, atan2, sqrt, acos, atan
 import numpy as np
 import matplotlib.pyplot as plt
 
+class Traj:
+    def __init__(self, jointCount : int, gapPoint : int = 50):
+        self.t = np.zeros((gapPoint, 1))
+        self.q = np.zeros((gapPoint, jointCount))
+        self.w = np.zeros((gapPoint, jointCount))
+        self.a = np.zeros((gapPoint, jointCount))
+
 class Puma560:
     def __init__(self):
         self.dh_params = [
@@ -198,32 +205,40 @@ class Puma560:
         k5 = (N / (t ** 3) - k3 - t * k4) / (t ** 2)
         return k0, k1, k2, k3, k4, k5
     
-    def traj(self, QStart, QEnd, T: float = 5, times: int = 50) -> np.ndarray:
+    def traj(self, QStart, QEnd, T: float = 5, gapPoint: int = 50) -> Traj:
         """根据起始状态各关节角与终止状态各关节角规划轨迹
 
         Args:
             QStart (_type_): 起始关节角
             QEnd (_type_): 终止关节角
             T (float | int, optional): 起始到终止经历时间. Defaults to 5.
-            times (int, optional): 计算 0~T之间times个点的关节角. Defaults to 50.
+            gapPoint (int, optional): 计算 0~T之间times个点的关节角. Defaults to 50.
 
         Returns:
             np.ndarray: _description_
         """
         K = []
-        Trajectory = np.zeros((times, len(QStart)))
+        Trajectory = Traj(len(QStart), gapPoint)
         for i in range(len(QStart)):
             K.append(self.CalculateParams((QStart[i], QEnd[i]), (0, 0), (0, 0), T))
-        for k in range(times):
-            t = T / (times - 1) * k
+        for k in range(gapPoint):
+            t = T / (gapPoint - 1) * k
+            Trajectory.t[k] = t
             for i in range(len(QStart)):
                 Qt = K[i][0] + K[i][1] * t + K[i][2] * t**2 + K[i][3] * t**3 + K[i][4] * t**4 + K[i][5] * t**5
-                Trajectory[k][i] = Qt
+                Wt = K[i][1] + 2 * K[i][2] * t + 3 * K[i][3] * t**2 + 4 * K[i][4] * t**3 + 5 * K[i][5] * t**4
+                At = 2 * K[i][2] + 6 * K[i][3] * t + 12 * K[i][4] * t**2 + 20 * K[i][5] * t**3
+                Trajectory.q[k][i] = Qt
+                Trajectory.w[k][i] = Wt
+                Trajectory.a[k][i] = At
         return Trajectory
         
         
     
 if __name__ == '__main__':
+    plt.rcParams['font.sans-serif'] = ['simhei'] 
+    plt.rcParams['axes.unicode_minus'] = False
+    
     puma = Puma560()
     # 运动学正解
     q = np.array([30, 60, 45, 30, 60, 30])
@@ -250,6 +265,18 @@ if __name__ == '__main__':
     print("根据Sol2得到的正解T2: \n", np.round(puma.forward(Sol2), 2))
 
     # 计算从Sol1到Sol2的轨迹
-    trajec = puma.traj(Sol1, Sol2)
-    robot.plot(trajec, backend='pyplot', movie="trajectory.gif")
+    trajectory = puma.traj(Sol1, Sol2)
+    # robot.plot(trajectory.q, backend='pyplot', movie="trajectory.gif")
     
+    # 画出速度和加速度曲线
+    fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
+    title = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6"]
+    fig.suptitle("Puma560各关节角角速度与加速度变化曲线")
+    for i, ax in enumerate(axes.flat):
+        ax.plot(trajectory.t, trajectory.w[:, i], label="角速度")
+        ax.plot(trajectory.t, trajectory.a[:, i], label="加速度")
+        ax.set_title(title[i])
+        ax.set_xlabel("t")
+        ax.legend()
+        ax.grid(True)
+    plt.savefig("速度与加速度变化曲线.png", dpi=300)
