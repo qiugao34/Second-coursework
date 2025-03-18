@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 class Traj:
     def __init__(self, jointCount : int, gapPoint : int = 50):
-        self.t = np.zeros((gapPoint, 1))
+        self.t = np.zeros(gapPoint)
         self.q = np.zeros((gapPoint, jointCount))
         self.w = np.zeros((gapPoint, jointCount))
         self.a = np.zeros((gapPoint, jointCount))
@@ -207,10 +207,9 @@ class Puma560:
     
     def traj(self, QStart, QEnd, T: float = 5, gapPoint: int = 50) -> Traj:
         """根据起始状态各关节角与终止状态各关节角规划轨迹
-
         Args:
-            QStart (_type_): 起始关节角
-            QEnd (_type_): 终止关节角
+            QStart (_type_): 起始关节角(弧度)
+            QEnd (_type_): 终止关节角(弧度)
             T (float | int, optional): 起始到终止经历时间. Defaults to 5.
             gapPoint (int, optional): 计算 0~T之间times个点的关节角. Defaults to 50.
 
@@ -236,7 +235,7 @@ class Puma560:
         
     
 if __name__ == '__main__':
-    plt.rcParams['font.sans-serif'] = ['simhei'] 
+    plt.rcParams['font.sans-serif'] = ['SimHei'] 
     plt.rcParams['axes.unicode_minus'] = False
     
     puma = Puma560()
@@ -244,7 +243,6 @@ if __name__ == '__main__':
     q = np.array([30, 60, 45, 30, 60, 30])
     print(f"theta1={q[0]} thetea2={q[1]} theta3 = {q[2]} theta4={q[3]} theta5={q[4]} theta6={q[5]}\n", puma.forward(np.deg2rad(q)))
 
-    robot = rtb.models.DH.Puma560()
     # 运动学逆解
     pos1 = np.array([0.4, -0.1, 1.0])  # 起始位置
     Sol1 = puma.inverse(np.array(pos1, dtype=np.float64))[0]
@@ -252,8 +250,9 @@ if __name__ == '__main__':
     pos2 = np.array([0.6, 0.3, 1.2])  # 终止位置
     Sol2 = puma.inverse(np.array(pos2, dtype=np.float64))[0]
 
-    Sol1 = np.round(np.rad2deg(Sol1), 2)
-    Sol2 = np.round(np.rad2deg(Sol2), 2)
+    Sol1 = np.round(np.rad2deg(Sol1), 2)  # 起始位置逆解
+    Sol2 = np.round(np.rad2deg(Sol2), 2)  # 终止位置逆解
+    # 打印结果
     print("Sol1: ")
     print(f"theta1={Sol1[0]} thetea2={Sol1[1]} theta3 = {Sol1[2]} theta4={Sol1[3]} theta5={Sol1[4]} theta6={Sol1[5]}")
     print("Sol2: ")
@@ -265,8 +264,9 @@ if __name__ == '__main__':
     print("根据Sol2得到的正解T2: \n", np.round(puma.forward(Sol2), 2))
 
     # 计算从Sol1到Sol2的轨迹
-    trajectory = puma.traj(Sol1, Sol2)
-    # robot.plot(trajectory.q, backend='pyplot', movie="trajectory.gif")
+    trajectory = puma.traj(Sol1, Sol2, T = 1, gapPoint=50)
+    robot = rtb.models.DH.Puma560()
+    robot.plot(trajectory.q, backend='pyplot', movie="trajectory.gif")
     
     # 画出速度和加速度曲线
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
@@ -279,4 +279,5 @@ if __name__ == '__main__':
         ax.set_xlabel("t")
         ax.legend()
         ax.grid(True)
-    plt.savefig("速度与加速度变化曲线.png", dpi=300)
+    plt.savefig("速度与加速度变化曲线.png")
+    plt.show()
