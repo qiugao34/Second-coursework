@@ -13,14 +13,14 @@ class Traj:
 class Puma560:
     def __init__(self):
         self.dh_params = [
-                {'theta': 0, 'd': 0.6718, 'a': 0, 'alpha': pi/2},
-                {'theta': 0, 'd': 0, 'a': 0.4318, 'alpha': 0},
-                {'theta': 0, 'd': 0.15005, 'a': 0.0203, 'alpha': -pi/2},
-                {'theta': 0, 'd': 0.4318, 'a': 0, 'alpha': pi/2},
-                {'theta': 0, 'd': 0, 'a': 0, 'alpha': -pi/2},
-                {'theta': 0, 'd': 0, 'a': 0, 'alpha': 0},
+                {'theta': 0, 'd': 0.6718, 'a': 0, 'alpha': pi/2, 'q-': -160, 'q+': 160},
+                {'theta': 0, 'd': 0, 'a': 0.4318, 'alpha': 0, 'q-': -110, 'q+': 110},
+                {'theta': 0, 'd': 0.15005, 'a': 0.0203, 'alpha': -pi/2, 'q-': -135, 'q+': 135},
+                {'theta': 0, 'd': 0.4318, 'a': 0, 'alpha': pi/2, 'q-': -266, 'q+': 266},
+                {'theta': 0, 'd': 0, 'a': 0, 'alpha': -pi/2, 'q-': -100, 'q+': 100},
+                {'theta': 0, 'd': 0, 'a': 0, 'alpha': 0, 'q-': -266, 'q+': 266},
             ]
-        self.limits = [(-160, 160), (-110, 110), (-135, 135), (-266, 266), (-100, 100), (-266, 266)] # 关节角限制
+        
     
     def dh_matrix(self, theta: float, d: float, a: float, alpha: float) -> np.ndarray:
         """Puma560六轴机械臂的DH变换矩阵
@@ -58,29 +58,24 @@ class Puma560:
 
     def limit(self, rad:float, LimitsIndex: int, e=1e-3):
         """判断rad是否超过关节角限制
-
         Args:
             rad (float): 关节角弧度
             LimitsIndex (int): 索引即第LimitsIndex个关节角
             e (float, optional): 误差范围. Defaults to 1e-3.
-
         Returns:
             bool: 超过限制返回False，否则返回True
         """
         deg = np.rad2deg(rad)
-        Limits = self.limits
-        if (deg - Limits[LimitsIndex][0]) < -e or (deg - Limits[LimitsIndex][1]) > e:
+        if (deg - self.dh_params[LimitsIndex]['q-']) < -e or (deg - self.dh_params[LimitsIndex]['q+']) > e:
             return False
         return True
     
     def inverse(self, T: np.ndarray) -> np.ndarray:
         """根据位姿求解关节角
-
         Args:
             T (np.ndarray): 目标位姿
         Raises:
             ValueError: 判断T是否为规定的形状
-
         Returns:
             np.ndarray: 所有符合条件的解，值为弧度
         """
@@ -264,9 +259,9 @@ if __name__ == '__main__':
     print("根据Sol2得到的正解T2: \n", np.round(puma.forward(Sol2), 2))
 
     # 计算从Sol1到Sol2的轨迹
-    trajectory = puma.traj(Sol1, Sol2, T = 1, gapPoint=50)
+    trajectory = puma.traj(Sol1, Sol2, T = 5, gapPoint=50)
     robot = rtb.models.DH.Puma560()
-    robot.plot(trajectory.q, backend='pyplot', movie="trajectory.gif")
+    robot.plot(trajectory.q, backend='pyplot', movie="trajectory5.gif")
     
     # 画出速度和加速度曲线
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(12, 8))
